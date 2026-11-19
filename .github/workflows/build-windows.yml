@@ -19,11 +19,6 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: wrapper
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -39,7 +34,6 @@ jobs:
         working-directory: front
         shell: pwsh
         run: |
-          # Install deps - ignore exit code as optional deps may fail
           pnpm install --no-frozen-lockfile 2>&1 | Out-Null
           Write-Host "Frontend dependencies installed"
           exit 0
@@ -58,16 +52,11 @@ jobs:
           node scripts/copy-dist.mjs
           Write-Host "Frontend dist copied to src/main/resources/dist"
 
-      - name: Install Patchright driver
+      - name: Build backend with Gradle wrapper
         shell: pwsh
         run: |
-          gradle installPatchrightDriver --no-daemon
-          Write-Host "Patchright driver installed"
-
-      - name: Build backend (Spring Boot JAR)
-        shell: pwsh
-        run: |
-          gradle bootJar --no-daemon -x test
+          # Use gradlew.bat wrapper and build everything in one go
+          .\gradlew.bat bootJar --no-daemon --refresh-dependencies --stacktrace
           Write-Host "Backend JAR built"
 
       - name: Collect build artifacts
