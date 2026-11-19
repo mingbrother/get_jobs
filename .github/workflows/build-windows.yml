@@ -1,0 +1,112 @@
+name: Build Windows Artifacts
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          run_install: false
+
+      - name: Install frontend dependencies
+        working-directory: front
+        shell: pwsh
+        run: |
+          # Install deps, ignore optional native build script failures (sharp/unrs-resolver)
+          pnpm install --no-frozen-lockfile 2>&1 | Out-Null
+          Write-Host "Frontend dependencies installed"
+
+      - name: Build frontend (Next.js)
+        working-directory: front
+        shell: pwsh
+        run: |
+          node node_modules/next/dist/bin/next build
+          Write-Host "Frontend build completed"
+
+      - name: Copy frontend dist to resources
+        working-directory: front
+        shell: pwsh
+        run: |
+          node scripts/copy-dist.mjs
+          Write-Host "Frontend dist copied to src/main/resources/dist"
+
+      - name: Install Patchright driver
+        shell: pwsh
+        run: |
+          .\gradlew.bat installPatchrightDriver --no-daemon
+          Write-Host "Patchright driver installed"
+
+      - name: Build backend (Spring Boot JAR)
+        shell: pwsh
+        run: |
+          .\gradlew.bat bootJar --no-daemon -x test
+          Write-Host "Backend JAR built"
+
+      - name: Collect build artifacts
+        shell: pwsh
+        run: |
+          # Create output directory
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          
+          # Copy backend JAR
+          $jarFiles = Get-ChildItem -Path build\libs -Filter "*.jar" -ErrorAction SilentlyContinue
+          if ($jarFiles) {
+            foreach ($jar in $jarFiles) {
+              Copy-Item $jar.FullName -Destination artifacts\
+              Write-Host "Copied: $($jar.Name)"
+            }
+          }
+          
+          # Copy frontend dist as separate artifact
+          if (Test-Path "src\main\resources\dist") {
+            Compress-Archive -Path "src\main\resources\dist\*" -DestinationPath "artifacts\frontend-dist.zip" -Force
+            Write-Host "Frontend dist archived"
+          }
+          
+          # List artifacts
+          Write-Host "`nArtifacts:"
+          Get-ChildItem artifacts | ForEach-Object { Write-Host "  $($_.Name) - $([math]::Round($_.Length / 1MB, 2)) MB" }
+
+      - name: Upload backend JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: get_jobs-backend-jar
+          path: build/libs/*.jar
+          retention-days: 30
+
+      - name: Upload frontend dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: get_jobs-frontend-dist
+          path: src/main/resources/dist/
+          retention-days: 30
+
+      - name: Upload all artifacts zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: get_jobs-all-artifacts
+          path: artifacts/
+          retention-days: 30
