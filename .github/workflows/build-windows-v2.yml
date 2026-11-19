@@ -1,0 +1,109 @@
+name: Build Windows JAR v2.0.1
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout v2.0.1 tag
+        uses: actions/checkout@v4
+        with:
+          ref: v2.0.1
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          run_install: false
+
+      - name: Install frontend dependencies
+        working-directory: front
+        shell: pwsh
+        run: |
+          pnpm install --no-frozen-lockfile 2>&1 | Out-Null
+          Write-Host "Frontend dependencies installed"
+          exit 0
+
+      - name: Build frontend (Next.js)
+        working-directory: front
+        shell: pwsh
+        run: |
+          node node_modules/next/dist/bin/next build
+          Write-Host "Frontend build completed"
+
+      - name: Copy frontend dist to resources
+        working-directory: front
+        shell: pwsh
+        run: |
+          node scripts/copy-dist.mjs
+          Write-Host "Frontend dist copied to src/main/resources/dist"
+
+      - name: Build backend with Gradle
+        shell: pwsh
+        run: |
+          # Clear proxy settings
+          $env:http_proxy = ''
+          $env:https_proxy = ''
+          $env:HTTP_PROXY = ''
+          $env:HTTPS_PROXY = ''
+          $env:JAVA_TOOL_OPTIONS = '-Dhttp.nonProxyHosts=* -Dhttp.proxyHost= -Dhttps.proxyHost='
+          .\gradlew.bat bootJar --no-daemon --refresh-dependencies
+          Write-Host "Backend JAR built"
+
+      - name: Collect build artifacts
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          
+          $jarFiles = Get-ChildItem -Path build\libs -Filter "*.jar" -ErrorAction SilentlyContinue
+          if ($jarFiles) {
+            foreach ($jar in $jarFiles) {
+              Copy-Item $jar.FullName -Destination artifacts\
+              Write-Host "Copied: $($jar.Name)"
+            }
+          }
+          
+          if (Test-Path "src\main\resources\dist") {
+            Compress-Archive -Path "src\main\resources\dist\*" -DestinationPath "artifacts\frontend-dist.zip" -Force
+            Write-Host "Frontend dist archived"
+          }
+          
+          Write-Host "`nArtifacts:"
+          Get-ChildItem artifacts | ForEach-Object { Write-Host "  $($_.Name) - $([math]::Round($_.Length / 1MB, 2)) MB" }
+
+      - name: Upload backend JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: get_jobs-v2.0.1-jar
+          path: build/libs/*.jar
+          retention-days: 30
+
+      - name: Upload frontend dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: get_jobs-v2.0.1-frontend-dist
+          path: src/main/resources/dist/
+          retention-days: 30
+
+      - name: Upload all artifacts zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: get_jobs-v2.0.1-all-artifacts
+          path: artifacts/
+          retention-days: 30
