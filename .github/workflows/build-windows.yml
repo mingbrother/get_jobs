@@ -18,7 +18,11 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-          cache: gradle
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: wrapper
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -57,13 +61,13 @@ jobs:
       - name: Install Patchright driver
         shell: pwsh
         run: |
-          .\gradlew.bat installPatchrightDriver --no-daemon
+          gradle installPatchrightDriver --no-daemon
           Write-Host "Patchright driver installed"
 
       - name: Build backend (Spring Boot JAR)
         shell: pwsh
         run: |
-          .\gradlew.bat bootJar --no-daemon -x test
+          gradle bootJar --no-daemon -x test
           Write-Host "Backend JAR built"
 
       - name: Collect build artifacts
