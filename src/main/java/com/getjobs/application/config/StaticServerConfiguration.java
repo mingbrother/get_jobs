@@ -6,7 +6,9 @@ import org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactor
 import org.springframework.boot.web.server.WebServerFactoryCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.ClassPathResource;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URI;
@@ -37,7 +39,7 @@ public class StaticServerConfiguration {
                 return;
             }
 
-            // 检查是否有静态资源
+            // 检查是否有静态资源（文件系统或 classpath）
             boolean hasStaticResources = checkStaticResources();
 
             if (hasStaticResources) {
@@ -92,7 +94,7 @@ public class StaticServerConfiguration {
     }
 
     /**
-     * 检查静态资源是否存在
+     * 检查静态资源是否存在（文件系统或 classpath）
      */
     private boolean checkStaticResources() {
         Path distPath = Paths.get(DIST_PATH);
@@ -105,10 +107,16 @@ public class StaticServerConfiguration {
         boolean hasDist = hasContent(distPath);
         boolean hasStatic = hasContent(staticPath);
 
+        // 也检查 classpath 中的资源
+        boolean hasClasspathDist = hasClasspathContent("dist/");
+        boolean hasClasspathStatic = hasClasspathContent("static/");
+
         log.info("  dist存在: {}", hasDist);
         log.info("  static存在: {}", hasStatic);
+        log.info("  classpath:/dist/ 存在: {}", hasClasspathDist);
+        log.info("  classpath:/static/ 存在: {}", hasClasspathStatic);
 
-        return hasDist || hasStatic;
+        return hasDist || hasStatic || hasClasspathDist || hasClasspathStatic;
     }
 
     /**
@@ -122,6 +130,33 @@ public class StaticServerConfiguration {
             return Files.list(path).findAny().isPresent();
         } catch (IOException e) {
             log.error("检查路径失败: {}", path, e);
+            return false;
+        }
+    }
+
+    /**
+     * 检查 classpath 资源是否存在且有内容
+     */
+    private boolean hasClasspathContent(String path) {
+        try {
+            ClassPathResource resource = new ClassPathResource(path);
+            if (!resource.exists()) {
+                return false;
+            }
+            // 尝试列出目录内容
+            if (resource.getURL().getProtocol().equals("jar")) {
+                // JAR 内的资源，简单检查是否存在
+                return true;
+            }
+            // 文件系统资源，检查目录是否有内容
+            File dir = resource.getFile();
+            if (dir.isDirectory()) {
+                String[] children = dir.list();
+                return children != null && children.length > 0;
+            }
+            return true;
+        } catch (Exception e) {
+            log.debug("检查 classpath 资源失败: {}", path, e.getMessage());
             return false;
         }
     }
