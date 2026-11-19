@@ -12,7 +12,10 @@ buildscript {
     }
 }
 
-apply(plugin = "java")
+plugins {
+    java
+}
+
 apply(plugin = "org.springframework.boot")
 
 group = "com.getjobs"
