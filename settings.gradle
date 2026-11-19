@@ -1,10 +1,10 @@
-// Plugin resolution: use both Gradle Plugin Portal and Maven Central
+// Plugin resolution
 pluginManagement {
     repositories {
-        gradlePluginPortal()
         mavenCentral()
+        gradlePluginPortal()
     }
 }
 
-// Project identity: keep the Gradle name aligned with the repository name.
+// Project identity
 rootProject.name = 'get_jobs'
