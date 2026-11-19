@@ -8,7 +8,7 @@ buildscript {
         gradlePluginPortal()
     }
     dependencies {
-        classpath("org.springframework.boot:spring-boot-gradle-plugin:3.2.0")
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:3.4.1")
     }
 }
 
@@ -30,7 +30,7 @@ repositories {
 }
 
 dependencies {
-    implementation(platform("org.springframework.boot:spring-boot-dependencies:3.2.0"))
+    implementation(platform("org.springframework.boot:spring-boot-dependencies:3.4.1"))
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml")
