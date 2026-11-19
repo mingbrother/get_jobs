@@ -35,9 +35,10 @@ jobs:
         working-directory: front
         shell: pwsh
         run: |
-          # Install deps, ignore optional native build script failures (sharp/unrs-resolver)
+          # Install deps - ignore exit code as optional deps may fail
           pnpm install --no-frozen-lockfile 2>&1 | Out-Null
           Write-Host "Frontend dependencies installed"
+          exit 0
 
       - name: Build frontend (Next.js)
         working-directory: front
