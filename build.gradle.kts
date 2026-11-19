@@ -1,6 +1,5 @@
 // Application build, dependency management, and packaging.
 import java.time.LocalDate
-import org.springframework.boot.gradle.tasks.run.BootRun
 import org.gradle.language.jvm.tasks.ProcessResources
 
 buildscript {
@@ -9,15 +8,11 @@ buildscript {
         gradlePluginPortal()
     }
     dependencies {
-        classpath("org.springframework.boot:spring-boot-gradle-plugin:3.1.5")
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:3.2.0")
     }
 }
 
-plugins {
-    java
-    id("io.spring.dependency-management") version "1.1.3"
-}
-
+apply(plugin = "java")
 apply(plugin = "org.springframework.boot")
 
 group = "com.getjobs"
@@ -32,7 +27,7 @@ repositories {
 }
 
 dependencies {
-    implementation(platform("org.springframework.boot:spring-boot-dependencies:3.1.5"))
+    implementation(platform("org.springframework.boot:spring-boot-dependencies:3.2.0"))
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml")
@@ -61,8 +56,8 @@ tasks.withType<JavaCompile> {
     options.compilerArgs.addAll(listOf("-Xlint:deprecation"))
 }
 
-springBoot {
-    buildInfo()
+tasks.named("bootJar") {
+    dependsOn("installPatchrightDriver", "buildFrontend")
 }
 
 val patchrightVersion = "1.62.1"
@@ -158,20 +153,15 @@ val buildFrontend = tasks.register("buildFrontend") {
         if (!File(frontendDir, "node_modules/next").isDirectory) {
             val corepack = findOnPath("corepack")
             if (corepack == null) {
-                logger.warn("Frontend dependencies not installed, skipping")
+                logger.warn("Frontend deps not installed, skipping")
                 return@doLast
             }
-            logger.lifecycle("Installing frontend dependencies...")
+            logger.lifecycle("Installing frontend deps...")
             providers.exec {
                 workingDir = frontendDir
                 commandLine(corepack.absolutePath, "pnpm", "install")
                 isIgnoreExitValue = true
             }.result.get()
-
-            if (!File(frontendDir, "node_modules/next").isDirectory) {
-                logger.warn("Frontend dependencies not installed properly, skipping")
-                return@doLast
-            }
         }
 
         logger.lifecycle("Building frontend (next build)...")
@@ -180,7 +170,7 @@ val buildFrontend = tasks.register("buildFrontend") {
             commandLine(node.absolutePath, "node_modules/next/dist/bin/next", "build")
         }.result.get().assertNormalExitValue()
 
-        logger.lifecycle("Copying build output to src/main/resources/dist ...")
+        logger.lifecycle("Copying build output...")
         providers.exec {
             workingDir = frontendDir
             commandLine(node.absolutePath, "scripts/copy-dist.mjs")
@@ -193,15 +183,4 @@ val buildFrontend = tasks.register("buildFrontend") {
 tasks.named<ProcessResources>("processResources") {
     dependsOn(buildFrontend)
     exclude("resume", "resume.*")
-}
-
-tasks.named<BootRun>("bootRun") {
-    dependsOn(installPatchrightDriver, buildFrontend)
-
-    systemProperty("file.encoding", "UTF-8")
-    systemProperty("sun.stdout.encoding", "UTF-8")
-    systemProperty("sun.stderr.encoding", "UTF-8")
-    systemProperty("LOG_DATE", LocalDate.now().toString())
-    systemProperty("playwright.cli.dir", patchrightDriverDir.get().asFile.absolutePath)
-    resolveNodePath()?.let { environment("PLAYWRIGHT_NODEJS_PATH", it) }
 }
