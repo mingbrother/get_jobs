@@ -1,4 +1,5 @@
 import java.time.LocalDate
+import java.io.File
 import org.springframework.boot.gradle.tasks.run.BootRun
 import org.gradle.language.jvm.tasks.ProcessResources
 
@@ -74,7 +75,7 @@ val buildFrontend = tasks.register("buildFrontend") {
         }
 
         // Install dependencies if needed
-        if (!java.io.File(frontendDir, "node_modules/next").isDirectory) {
+        if (!File(frontendDir, "node_modules/next").isDirectory) {
             val corepack = findOnPath("corepack")
             if (corepack == null) {
                 logger.warn("Frontend dependencies not installed and corepack not found, skipping")
@@ -113,14 +114,14 @@ tasks.named<ProcessResources>("processResources") {
 }
 
 // 查找可执行文件
-fun findOnPath(name: String): java.io.File? {
+fun findOnPath(name: String): File? {
     val isWindows = System.getProperty("os.name").lowercase().contains("windows")
     val candidates = if (isWindows) listOf("$name.cmd", "$name.exe", "$name.bat", name) else listOf(name)
-    val dirs = System.getenv("PATH")?.split(java.io.File.pathSeparator).orEmpty()
+    val dirs = System.getenv("PATH")?.split(File.pathSeparator).orEmpty()
     for (dir in dirs) {
         if (dir.isBlank()) continue
         for (candidate in candidates) {
-            val file = java.io.File(dir.trim(), candidate)
+            val file = File(dir.trim(), candidate)
             if (file.isFile) return file
         }
     }
