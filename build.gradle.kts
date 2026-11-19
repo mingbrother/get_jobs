@@ -5,7 +5,7 @@ import org.gradle.language.jvm.tasks.ProcessResources
 
 plugins {
     java
-    id("org.springframework.boot") version "3.5.16"
+    id("org.springframework.boot") version "3.5.0"
     // 使用 BOM(platform) 管理版本，不需要 dependency-management 插件
     // id("io.spring.dependency-management") version "1.1.6"
 }
@@ -25,7 +25,7 @@ repositories {
 
 dependencies {
     // 用 Spring Boot 官方 BOM 管理版本（推荐）
-    implementation(platform("org.springframework.boot:spring-boot-dependencies:3.5.16"))
+    implementation(platform("org.springframework.boot:spring-boot-dependencies:3.5.0"))
 
     // 受 BOM 管理的依赖（不写版本）
     implementation("org.springframework.boot:spring-boot-starter-web")
